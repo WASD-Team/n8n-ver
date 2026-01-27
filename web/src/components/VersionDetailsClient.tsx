@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import type { VersionRow } from "@/lib/versionsStore";
 import { formatDateTimeUtc } from "@/lib/dates";
 
@@ -24,7 +25,7 @@ export function VersionDetailsClient(props: { version: VersionRow }) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-zinc-900">Actions</h2>
-            <p className="text-xs text-zinc-500">Mock buttons for now</p>
+            <p className="text-xs text-zinc-500">Restore or compare this version.</p>
           </div>
           <div className="h-9 w-9 bg-zinc-100" aria-hidden="true" />
         </div>
@@ -46,9 +47,12 @@ export function VersionDetailsClient(props: { version: VersionRow }) {
           >
             Restore this version
           </button>
-          <button className="button-secondary h-10 px-4 text-sm">
+          <Link
+            className="button-secondary flex h-10 items-center justify-center px-4 text-sm"
+            href={`/diff?base=${version.id}`}
+          >
             Compare…
-          </button>
+          </Link>
           <button
             className="button-secondary h-10 px-4 text-sm"
             onClick={async () => {
@@ -106,7 +110,7 @@ export function VersionDetailsClient(props: { version: VersionRow }) {
       <section className="space-y-4 border border-zinc-100 bg-white p-5 shadow-sm lg:col-span-2">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900">Metadata</h2>
-          <p className="text-xs text-zinc-500">Descriptions/comments/tags are mock UI. Later we’ll persist to PostgreSQL.</p>
+          <p className="text-xs text-zinc-500">Add context to this version for audits.</p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

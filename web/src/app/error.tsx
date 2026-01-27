@@ -15,8 +15,7 @@ export default function GlobalError(props: { error: Error & { digest?: string };
     <div className="mx-auto max-w-xl space-y-3 border border-zinc-200 bg-white p-6">
       <h1 className="text-lg font-semibold">Something went wrong</h1>
       <p className="text-sm text-zinc-600">
-        This is a UI mock that reads from <code className="bg-zinc-100 px-1.5 py-0.5">../test_version.csv</code>. If the
-        file is missing, or parsing fails, you’ll see this screen.
+        We couldn’t load the requested data. Please try again or return to Workflows.
       </p>
       <div className="border border-red-200 bg-red-50 p-3 text-sm text-red-800">
         {error.message}
