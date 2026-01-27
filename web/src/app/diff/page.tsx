@@ -23,6 +23,7 @@ export default async function DiffPage(props: {
 
   return (
     <DiffClient
+      key={`${workflowId ?? ""}:${baseScoped?.id ?? ""}:${compareScoped?.id ?? ""}`}
       workflows={workflows}
       workflowId={workflowId}
       base={baseScoped}

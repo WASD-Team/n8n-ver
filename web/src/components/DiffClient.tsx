@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { VersionRow, WorkflowSummary } from "@/lib/versionsStore";
 import { formatDateTimeUtc } from "@/lib/dates";
 
@@ -83,9 +83,9 @@ export function DiffClient(props: {
   compare?: VersionRow;
   versions: VersionRow[];
 }) {
-  const [workflowId, setWorkflowId] = useState(props.workflowId ?? "");
-  const [baseId, setBaseId] = useState(props.base?.id ? String(props.base.id) : "");
-  const [compareId, setCompareId] = useState(props.compare?.id ? String(props.compare.id) : "");
+  const [workflowId, setWorkflowId] = useState(() => props.workflowId ?? "");
+  const [baseId, setBaseId] = useState(() => (props.base?.id ? String(props.base.id) : ""));
+  const [compareId, setCompareId] = useState(() => (props.compare?.id ? String(props.compare.id) : ""));
 
   const baseParsed = useMemo(
     () => (props.base ? safeParseJson(props.base.w_json) : undefined),
@@ -95,20 +95,6 @@ export function DiffClient(props: {
     () => (props.compare ? safeParseJson(props.compare.w_json) : undefined),
     [props.compare],
   );
-
-  useEffect(() => {
-    setWorkflowId(props.workflowId ?? "");
-  }, [props.workflowId]);
-
-  useEffect(() => {
-    if (!workflowId) {
-      setBaseId("");
-      setCompareId("");
-      return;
-    }
-    if (props.base && props.base.w_id !== workflowId) setBaseId("");
-    if (props.compare && props.compare.w_id !== workflowId) setCompareId("");
-  }, [workflowId, props.base, props.compare]);
 
   const versionOptions = useMemo(() => {
     const map = new Map<number, VersionRow>();

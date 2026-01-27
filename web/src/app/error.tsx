@@ -7,7 +7,6 @@ export default function GlobalError(props: { error: Error & { digest?: string };
   const { error, reset } = props;
 
   useEffect(() => {
-    // eslint-disable-next-line no-console
     console.error(error);
   }, [error]);
 
