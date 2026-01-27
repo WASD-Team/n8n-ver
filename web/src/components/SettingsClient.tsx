@@ -76,7 +76,7 @@ export function SettingsClient(props: {
     try {
       const res = await fetch("/api/settings/preview", {
         method: "POST",
-        body: JSON.stringify({ versionId: Number(previewId), template: settings.webhook.template }),
+        body: JSON.stringify({ versionId: previewId.trim(), template: settings.webhook.template }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
@@ -102,7 +102,7 @@ export function SettingsClient(props: {
     try {
       const res = await fetch("/api/settings/test-webhook", {
         method: "POST",
-        body: JSON.stringify({ versionId: Number(previewId) }),
+        body: JSON.stringify({ versionId: previewId.trim() }),
       });
       const data = await res.json();
       const status = typeof data.status === "number" ? data.status : res.status;
@@ -304,12 +304,12 @@ export function SettingsClient(props: {
 
         <div className="mt-4 grid gap-3 md:grid-cols-[200px_1fr]">
           <label className="grid gap-1.5">
-            <span className="text-xs font-medium text-zinc-700">Preview version ID</span>
+            <span className="text-xs font-medium text-zinc-700">Preview version ID or UUID</span>
             <input
               value={previewId}
               onChange={(e) => setPreviewId(e.target.value)}
               className="form-field h-10"
-              placeholder="e.g. 2"
+              placeholder="e.g. 2 or 26c95746-a0b5-49b0-9890-3d3c1d7f57bf"
             />
           </label>
           <div className="flex items-end gap-2">

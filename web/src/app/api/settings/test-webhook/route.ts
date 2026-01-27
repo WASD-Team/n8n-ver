@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settingsStore";
 import type { VersionRow } from "@/lib/versionsStore";
-import { getVersionById } from "@/lib/versionsStore";
+import { getVersionById, getVersionByUuid } from "@/lib/versionsStore";
 import { applyTemplate } from "@/lib/template";
 
 function buildFallbackVersion(versionId: number): VersionRow {
@@ -26,16 +26,29 @@ function buildFallbackVersion(versionId: number): VersionRow {
 export async function POST(request: Request) {
   const admin = await requireAdmin();
   if (!admin.ok) return NextResponse.json({ ok: false, error: admin.error }, { status: 403 });
-  const body = (await request.json()) as { versionId?: number };
-  const requestedId = Number(body.versionId);
-  const version = (Number.isFinite(requestedId) ? await getVersionById(requestedId) : undefined) ?? buildFallbackVersion(requestedId);
+  const body = (await request.json()) as { versionId?: number | string };
+  const rawVersionId = typeof body.versionId === "string" ? body.versionId.trim() : body.versionId;
+  const numericId =
+    typeof rawVersionId === "number"
+      ? rawVersionId
+      : typeof rawVersionId === "string" && /^\d+$/.test(rawVersionId)
+        ? Number(rawVersionId)
+        : null;
+  const version =
+    numericId !== null
+      ? await getVersionById(numericId)
+      : typeof rawVersionId === "string" && rawVersionId
+        ? await getVersionByUuid(rawVersionId)
+        : undefined;
+  const fallbackId = numericId ?? 0;
+  const resolvedVersion = version ?? buildFallbackVersion(fallbackId);
 
   const settings = await getSettings();
   if (!settings.webhook.url) {
     return NextResponse.json({ ok: false, error: "Webhook URL is empty" }, { status: 400 });
   }
 
-  const applied = applyTemplate(settings.webhook.template, version);
+  const applied = applyTemplate(settings.webhook.template, resolvedVersion);
   if (!applied.ok) {
     return NextResponse.json({ ok: false, error: applied.error }, { status: 400 });
   }

@@ -85,6 +85,24 @@ export async function createUser(input: {
   return { id, name: input.name, email: input.email, role: input.role, status };
 }
 
+export async function createUserWithPassword(input: {
+  name: string;
+  email: string;
+  role: UserRole;
+  status?: UserStatus;
+  passwordHash: string;
+}) {
+  await ensureUsersTable();
+  const pool = await getAppPool();
+  const id = randomUUID();
+  const status = input.status ?? "Active";
+  await pool.query(
+    "INSERT INTO app_users (id, name, email, role, status, password_hash) VALUES ($1, $2, $3, $4, $5, $6)",
+    [id, input.name, input.email, input.role, status, input.passwordHash],
+  );
+  return { id, name: input.name, email: input.email, role: input.role, status };
+}
+
 export async function updateUserRole(input: { id: string; role: UserRole }) {
   await ensureUsersTable();
   const pool = await getAppPool();

@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { DragEvent } from "react";
 import type { WorkflowSummary } from "@/lib/versionsStore";
 
 type FolderMap = Record<string, string[]>;
+
+const STORAGE_KEY = "vm.sidebar.folders.v1";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
@@ -41,6 +44,7 @@ export function SidebarNav(props: { workflows: WorkflowSummary[] }) {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [newFolder, setNewFolder] = useState("");
   const [moveTarget, setMoveTarget] = useState("Ungrouped");
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   const assigned = useMemo(() => {
     const set = new Set<string>();
@@ -62,18 +66,81 @@ export function SidebarNav(props: { workflows: WorkflowSummary[] }) {
 
   const folderNames = Object.keys(folders).sort();
 
-  function moveSelected(target: string) {
-    if (selectedIds.length === 0) return;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      setFolders(defaultFolders);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw) as FolderMap;
+      const knownIds = new Set(workflows.map((w) => w.workflowId));
+      const next: FolderMap = {};
+      for (const [folder, ids] of Object.entries(parsed)) {
+        const filtered = ids.filter((id) => knownIds.has(id));
+        if (filtered.length > 0 || ids.length === 0) {
+          next[folder] = filtered;
+        }
+      }
+      setFolders(next);
+    } catch {
+      setFolders(defaultFolders);
+    }
+  }, [defaultFolders, workflows]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(folders));
+  }, [folders]);
+
+  function moveIds(target: string, ids: string[]) {
+    if (ids.length === 0) return;
+    const idsToMove = ids;
     setFolders((prev) => {
       const next: FolderMap = {};
       for (const [folder, ids] of Object.entries(prev)) {
-        next[folder] = ids.filter((id) => !selectedIds.includes(id));
+        next[folder] = ids.filter((id) => !idsToMove.includes(id));
       }
-      if (!next[target]) next[target] = [];
-      next[target] = [...new Set([...next[target], ...selectedIds])];
+      if (target !== "Ungrouped") {
+        if (!next[target]) next[target] = [];
+        next[target] = [...new Set([...next[target], ...idsToMove])];
+      }
       return next;
     });
     setSelected({});
+  }
+
+  function moveSelected(target: string) {
+    moveIds(target, selectedIds);
+  }
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
+
+  function handleDragStart(id: string, event: DragEvent<HTMLDivElement>) {
+    const ids = selected[id] ? selectedIds : [id];
+    event.dataTransfer.setData("application/x-n8n-workflows", JSON.stringify(ids));
+    event.dataTransfer.effectAllowed = "move";
+  }
+
+  function handleDrop(target: string, event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDropTarget(null);
+    const data = event.dataTransfer.getData("application/x-n8n-workflows");
+    if (!data) return;
+    try {
+      const ids = JSON.parse(data) as string[];
+      moveIds(target, ids);
+    } catch {
+      return;
+    }
+  }
+
+  function handleDragOver(target: string, event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDropTarget(target);
   }
 
   return (
@@ -152,7 +219,13 @@ export function SidebarNav(props: { workflows: WorkflowSummary[] }) {
             const ids = folders[folder] ?? [];
             const isCollapsed = collapsed[folder];
             return (
-              <div key={folder} className="border border-white/10">
+              <div
+                key={folder}
+                className={`border border-white/10 ${dropTarget === folder ? "bg-white/10" : ""}`}
+                onDrop={(event) => handleDrop(folder, event)}
+                onDragOver={(event) => handleDragOver(folder, event)}
+                onDragLeave={() => setDropTarget(null)}
+              >
                 <button
                   type="button"
                   className="flex w-full items-center justify-between px-3 py-2 text-left text-xs font-semibold text-white/80 hover:bg-white/10"
@@ -168,13 +241,28 @@ export function SidebarNav(props: { workflows: WorkflowSummary[] }) {
                         const w = workflowById.get(id);
                         if (!w) return null;
                         return (
-                          <Link
+                          <div
                             key={id}
-                            href={`/workflows/${encodeURIComponent(w.workflowId)}/versions`}
-                            className="block truncate text-xs text-white/70 hover:text-white"
+                            className={`flex items-center gap-2 rounded px-1 py-1 text-xs ${
+                              selected[id] ? "bg-white/10" : ""
+                            }`}
+                            draggable
+                            onDragStart={(event) => handleDragStart(id, event)}
                           >
-                            {w.name}
-                          </Link>
+                            <input
+                              type="checkbox"
+                              checked={!!selected[id]}
+                              onChange={() => toggleSelected(id)}
+                              className="h-3 w-3 accent-[#ff4d7e]"
+                              aria-label={`Select ${w.name}`}
+                            />
+                            <Link
+                              href={`/workflows/${encodeURIComponent(w.workflowId)}/versions`}
+                              className="block flex-1 truncate text-xs text-white/70 hover:text-white"
+                            >
+                              {w.name}
+                            </Link>
+                          </div>
                         );
                       })
                     ) : (
@@ -187,7 +275,12 @@ export function SidebarNav(props: { workflows: WorkflowSummary[] }) {
           })}
 
           {ungrouped.length > 0 ? (
-            <div className="border border-white/10">
+            <div
+              className={`border border-white/10 ${dropTarget === "Ungrouped" ? "bg-white/10" : ""}`}
+              onDrop={(event) => handleDrop("Ungrouped", event)}
+              onDragOver={(event) => handleDragOver("Ungrouped", event)}
+              onDragLeave={() => setDropTarget(null)}
+            >
               <button
                 type="button"
                 className="flex w-full items-center justify-between px-3 py-2 text-left text-xs font-semibold text-white/80 hover:bg-white/10"
@@ -199,13 +292,28 @@ export function SidebarNav(props: { workflows: WorkflowSummary[] }) {
               {!collapsed.Ungrouped ? (
                 <div className="space-y-1 px-3 pb-2">
                   {ungrouped.map((w) => (
-                    <Link
+                    <div
                       key={w.workflowId}
-                      href={`/workflows/${encodeURIComponent(w.workflowId)}/versions`}
-                      className="block truncate text-xs text-white/70 hover:text-white"
+                      className={`flex items-center gap-2 rounded px-1 py-1 text-xs ${
+                        selected[w.workflowId] ? "bg-white/10" : ""
+                      }`}
+                      draggable
+                      onDragStart={(event) => handleDragStart(w.workflowId, event)}
                     >
-                      {w.name}
-                    </Link>
+                      <input
+                        type="checkbox"
+                        checked={!!selected[w.workflowId]}
+                        onChange={() => toggleSelected(w.workflowId)}
+                        className="h-3 w-3 accent-[#ff4d7e]"
+                        aria-label={`Select ${w.name}`}
+                      />
+                      <Link
+                        href={`/workflows/${encodeURIComponent(w.workflowId)}/versions`}
+                        className="block flex-1 truncate text-xs text-white/70 hover:text-white"
+                      >
+                        {w.name}
+                      </Link>
+                    </div>
                   ))}
                 </div>
               ) : null}

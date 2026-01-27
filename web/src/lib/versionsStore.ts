@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { getAppPool, getVersionsPool } from "@/lib/db";
 
 export type VersionRow = {
@@ -190,6 +191,23 @@ export async function getVersionById(versionId: number): Promise<VersionRow | un
   return applyMetadata([version], metadata)[0];
 }
 
+export async function getVersionByUuid(versionUuid: string): Promise<VersionRow | undefined> {
+  const pool = await getVersionsPool();
+  const result = await pool.query(
+    `
+    SELECT v.*
+    FROM ${VERSIONS_TABLE} v
+    WHERE v.w_version = $1
+    LIMIT 1
+    `,
+    [versionUuid],
+  );
+  if (!result.rows[0]) return undefined;
+  const version = mapVersionRow(result.rows[0]);
+  const metadata = await listMetadataByIds([version.id]);
+  return applyMetadata([version], metadata)[0];
+}
+
 export async function updateVersionMetadata(input: {
   versionId: number;
   description: string;
@@ -317,6 +335,50 @@ export async function deleteVersionsMetadataBulk(ids: number[]) {
   await ensureMetadataTable();
   const pool = await getAppPool();
   await pool.query(`DELETE FROM ${METADATA_TABLE} WHERE version_id = ANY($1::int[])`, [ids]);
+}
+
+export async function createManualVersion(input: {
+  workflowId: string;
+  workflowName: string;
+  workflowJson: string;
+  versionUuid?: string | null;
+  workflowUpdatedAt?: string | null;
+  createdAt?: string | null;
+}) {
+  const now = new Date().toISOString();
+  const versionUuid = input.versionUuid?.trim() || randomUUID();
+  const workflowUpdatedAt = input.workflowUpdatedAt?.trim() || now;
+  const createdAt = input.createdAt?.trim() || now;
+
+  const pool = await getVersionsPool();
+  const nextIdResult = await pool.query(
+    `
+    SELECT COALESCE(MAX(id), 0) + 1 AS next_id
+    FROM ${VERSIONS_TABLE}
+    `,
+  );
+  const nextId = Number(nextIdResult.rows[0]?.next_id ?? 1);
+  const result = await pool.query(
+    `
+    INSERT INTO ${VERSIONS_TABLE} (id, w_name, w_id, w_version, w_updatedat, w_json, createdat, updatedat)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING *
+    `,
+    [
+      nextId,
+      input.workflowName.trim(),
+      input.workflowId.trim(),
+      versionUuid,
+      workflowUpdatedAt,
+      input.workflowJson,
+      createdAt,
+      createdAt,
+    ],
+  );
+
+  const version = mapVersionRow(result.rows[0]);
+  const metadata = await listMetadataByIds([version.id]);
+  return applyMetadata([version], metadata)[0];
 }
 
 function mapVersionRow(row: Record<string, unknown>): VersionRow {

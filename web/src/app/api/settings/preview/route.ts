@@ -1,18 +1,30 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settingsStore";
-import { getVersionById } from "@/lib/versionsStore";
+import { getVersionById, getVersionByUuid } from "@/lib/versionsStore";
 import { applyTemplate, validateTemplate } from "@/lib/template";
 
 export async function POST(request: Request) {
   const admin = await requireAdmin();
   if (!admin.ok) return NextResponse.json({ ok: false, error: admin.error }, { status: 403 });
   const body = (await request.json()) as {
-    versionId: number;
+    versionId?: number | string;
     template?: string;
   };
+  const rawVersionId = typeof body.versionId === "string" ? body.versionId.trim() : body.versionId;
+  const numericId =
+    typeof rawVersionId === "number"
+      ? rawVersionId
+      : typeof rawVersionId === "string" && /^\d+$/.test(rawVersionId)
+        ? Number(rawVersionId)
+        : null;
 
-  const version = await getVersionById(Number(body.versionId));
+  const version =
+    numericId !== null
+      ? await getVersionById(numericId)
+      : typeof rawVersionId === "string" && rawVersionId
+        ? await getVersionByUuid(rawVersionId)
+        : undefined;
   if (!version) {
     return NextResponse.json({ ok: false, error: "Version not found" }, { status: 404 });
   }

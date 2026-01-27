@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ManualVersionFormClient } from "@/components/ManualVersionFormClient";
 import { WorkflowsTableClient } from "@/components/WorkflowsTableClient";
 import { listWorkflows } from "@/lib/versionsStore";
 
@@ -44,6 +45,13 @@ export default async function WorkflowsPage(props: {
           </form>
         </div>
       </div>
+
+      <ManualVersionFormClient
+        workflows={workflows.map((workflow) => ({
+          workflowId: workflow.workflowId,
+          name: workflow.name,
+        }))}
+      />
 
       <div className="border border-zinc-100 bg-white shadow-sm">
         <div className="border-b border-zinc-100 px-6 py-4 text-sm font-medium text-zinc-600">
