@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { DragEvent } from "react";
 import type { WorkflowSummary } from "@/lib/versionsStore";
+import type { WorkflowFolderMap } from "@/lib/workflowGroupsStore";
 
-type FolderMap = Record<string, string[]>;
-
-const STORAGE_KEY = "vm.sidebar.folders.v1";
+type FolderMap = WorkflowFolderMap;
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
@@ -27,8 +26,8 @@ function getFolderName(name: string) {
   return "Ungrouped";
 }
 
-export function SidebarNav(props: { workflows: WorkflowSummary[] }) {
-  const { workflows } = props;
+export function SidebarNav(props: { workflows: WorkflowSummary[]; initialFolders?: FolderMap }) {
+  const { workflows, initialFolders } = props;
   const defaultFolders = useMemo<FolderMap>(() => {
     const map: FolderMap = {};
     for (const w of workflows) {
@@ -39,7 +38,7 @@ export function SidebarNav(props: { workflows: WorkflowSummary[] }) {
     return map;
   }, [workflows]);
 
-  const [folders, setFolders] = useState<FolderMap>(defaultFolders);
+  const [folders, setFolders] = useState<FolderMap>(initialFolders ?? defaultFolders);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [newFolder, setNewFolder] = useState("");
@@ -66,38 +65,30 @@ export function SidebarNav(props: { workflows: WorkflowSummary[] }) {
 
   const folderNames = Object.keys(folders).sort();
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      setFolders(defaultFolders);
-      return;
-    }
+  async function persistFolders(next: FolderMap) {
     try {
-      const parsed = JSON.parse(raw) as FolderMap;
-      const knownIds = new Set(workflows.map((w) => w.workflowId));
-      const next: FolderMap = {};
-      for (const [folder, ids] of Object.entries(parsed)) {
-        const filtered = ids.filter((id) => knownIds.has(id));
-        if (filtered.length > 0 || ids.length === 0) {
-          next[folder] = filtered;
-        }
-      }
-      setFolders(next);
+      await fetch("/api/workflows/groups", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folders: next }),
+      });
     } catch {
-      setFolders(defaultFolders);
+      // Intentionally ignore persistence errors in the sidebar UI.
     }
-  }, [defaultFolders, workflows]);
+  }
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(folders));
-  }, [folders]);
+  function setFoldersAndPersist(updater: (prev: FolderMap) => FolderMap) {
+    setFolders((prev) => {
+      const next = updater(prev);
+      void persistFolders(next);
+      return next;
+    });
+  }
 
   function moveIds(target: string, ids: string[]) {
     if (ids.length === 0) return;
     const idsToMove = ids;
-    setFolders((prev) => {
+    setFoldersAndPersist((prev) => {
       const next: FolderMap = {};
       for (const [folder, ids] of Object.entries(prev)) {
         next[folder] = ids.filter((id) => !idsToMove.includes(id));
@@ -181,9 +172,12 @@ export function SidebarNav(props: { workflows: WorkflowSummary[] }) {
             onClick={() => {
               const name = newFolder.trim();
               if (!name) return;
-              setFolders((prev) => ({ ...prev, [name]: prev[name] ?? [] }));
+              if (selectedIds.length === 0) {
+                setFoldersAndPersist((prev) => ({ ...prev, [name]: prev[name] ?? [] }));
+              } else {
+                moveIds(name, selectedIds);
+              }
               setMoveTarget(name);
-              moveSelected(name);
               setNewFolder("");
             }}
           >

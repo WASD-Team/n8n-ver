@@ -28,3 +28,16 @@ CREATE TABLE IF NOT EXISTS workflow_version_metadata (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS workflow_groups (
+  name TEXT PRIMARY KEY,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workflow_group_members (
+  workflow_id TEXT PRIMARY KEY,
+  group_name TEXT NOT NULL REFERENCES workflow_groups(name) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS workflow_group_members_group_name_idx
+  ON workflow_group_members (group_name);

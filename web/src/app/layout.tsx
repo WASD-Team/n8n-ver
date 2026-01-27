@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { SidebarNav } from "@/components/SidebarNav";
 import { getCurrentUser } from "@/lib/auth";
 import { listWorkflows } from "@/lib/versionsStore";
+import { listWorkflowGroups } from "@/lib/workflowGroupsStore";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,12 +31,18 @@ export default async function RootLayout({
   let workflows = [];
   let currentUser = null;
 
+  let folders = {};
   if (hasUserCookie) {
     try {
-      [workflows, currentUser] = await Promise.all([listWorkflows(), getCurrentUser()]);
+      [workflows, currentUser, folders] = await Promise.all([
+        listWorkflows(),
+        getCurrentUser(),
+        listWorkflowGroups(),
+      ]);
     } catch {
       workflows = [];
       currentUser = null;
+      folders = {};
     }
   }
 
@@ -67,7 +74,7 @@ export default async function RootLayout({
                 <div className="text-sm font-semibold tracking-wide">n8n Version</div>
                 <div className="text-xs text-white/60">Manager console</div>
               </div>
-              <SidebarNav workflows={workflows} />
+              <SidebarNav workflows={workflows} initialFolders={folders} />
               <div className="mt-auto border-t border-white/10 px-6 py-4 text-xs text-white/60">
                 n8n Version Manager · Preview
               </div>
