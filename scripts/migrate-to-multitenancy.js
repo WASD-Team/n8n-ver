@@ -20,22 +20,23 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-function parseSslFromUrl(url) {
-  try {
-    const parsed = new URL(url);
-    const sslMode = parsed.searchParams.get('sslmode');
-    if (sslMode === 'disable' || !sslMode) return undefined;
-    return { rejectUnauthorized: sslMode === 'verify-full' };
-  } catch {
-    return undefined;
-  }
+function parseDbUrl(url) {
+  const parsed = new URL(url);
+  const sslMode = parsed.searchParams.get('sslmode');
+  return {
+    host: parsed.hostname,
+    port: Number(parsed.port || 5432),
+    database: parsed.pathname.replace(/^\/+/, ''),
+    user: decodeURIComponent(parsed.username),
+    password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
+    ssl: (sslMode === 'disable' || !sslMode)
+      ? undefined
+      : { rejectUnauthorized: sslMode === 'verify-full' },
+  };
 }
 
 async function migrate() {
-  const pool = new Pool({
-    connectionString: DATABASE_URL,
-    ssl: parseSslFromUrl(DATABASE_URL),
-  });
+  const pool = new Pool(parseDbUrl(DATABASE_URL));
 
   const client = await pool.connect();
 
