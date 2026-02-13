@@ -15,9 +15,12 @@ ingress:
   enabled: true
   className: nginx
   annotations:
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-  host: n8n-ver.overgear.in
+    cert-manager.io/cluster-issuer: "letsencrypt-prod-aws-infra"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/whitelist-source-range: "164.92.252.230,3.70.244.156,89.19.208.87,35.157.80.219,165.232.76.7,85.202.81.231,31.172.135.244,162.55.42.109,78.47.217.91,5.78.95.109,88.85.172.244,167.235.67.27,142.132.165.199,188.245.207.137,141.95.33.90,162.19.234.219"
+  host: n8n-ver.infra.overgear.in
+  tls: true
 
 env: []
 
