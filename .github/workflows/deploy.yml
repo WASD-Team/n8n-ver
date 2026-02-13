@@ -41,12 +41,12 @@ jobs:
           echo "Image tag: ${IMAGE_TAG}"
 
       - name: Build and push Docker image
-        working-directory: web
         run: |
           IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${{ steps.meta.outputs.image_tag }}"
           IMAGE_LATEST="${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
 
           docker build \
+            --build-arg COMMIT_SHA=${GITHUB_SHA::8} \
             --label "git_commit=${GITHUB_SHA}" \
             --label "git_branch=${GITHUB_REF_NAME}" \
             -t "${IMAGE}" \
