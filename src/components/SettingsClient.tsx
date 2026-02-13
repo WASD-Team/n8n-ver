@@ -481,7 +481,7 @@ export function SettingsClient(props: {
               />
               <button
                 onClick={createInstance}
-                className="h-9 rounded bg-[#ff4d7e] px-4 text-sm font-medium text-white hover:bg-[#f43b70]"
+                className="button-secondary h-10 px-4 text-sm"
               >
                 Create Instance
               </button>
@@ -521,13 +521,13 @@ export function SettingsClient(props: {
                       />
                       <button
                         onClick={() => updateInstance(instance.id)}
-                        className="h-8 px-3 text-xs bg-[#ff4d7e] text-white hover:bg-[#f43b70]"
+                        className="button-secondary h-10 px-4 text-sm"
                       >
                         Save
                       </button>
                       <button
                         onClick={() => setEditingInstance(null)}
-                        className="h-8 px-3 text-xs border border-zinc-200 hover:bg-zinc-50"
+                        className="button-secondary h-10 px-4 text-sm"
                       >
                         Cancel
                       </button>
