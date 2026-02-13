@@ -481,7 +481,7 @@ export function SettingsClient(props: {
               />
               <button
                 onClick={createInstance}
-                className="h-9 bg-[#ff4d7e] px-4 text-sm font-medium text-white hover:bg-[#f43b70]"
+                className="h-9 rounded bg-[#ff4d7e] px-4 text-sm font-medium text-white hover:bg-[#f43b70]"
               >
                 Create Instance
               </button>
