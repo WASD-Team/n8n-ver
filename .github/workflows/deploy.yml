@@ -1,0 +1,87 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: eu-central-1
+  ECR_REGISTRY: 824404024508.dkr.ecr.eu-central-1.amazonaws.com
+  ECR_REPOSITORY: n8n-ver
+  HELM_RELEASE: n8n-ver
+  K8S_NAMESPACE: n8n-ver
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image tag
+        id: meta
+        run: |
+          IMAGE_TAG="${GITHUB_SHA::8}"
+          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "Image tag: ${IMAGE_TAG}"
+
+      - name: Build and push Docker image
+        working-directory: web
+        run: |
+          IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${{ steps.meta.outputs.image_tag }}"
+          IMAGE_LATEST="${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+
+          docker build \
+            --label "git_commit=${GITHUB_SHA}" \
+            --label "git_branch=${GITHUB_REF_NAME}" \
+            -t "${IMAGE}" \
+            -t "${IMAGE_LATEST}" \
+            .
+
+          docker push "${IMAGE}"
+          docker push "${IMAGE_LATEST}"
+
+          echo "Pushed: ${IMAGE}"
+
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Set up kubectl
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install ${HELM_RELEASE} ./helm/n8n-ver \
+            --namespace ${K8S_NAMESPACE} \
+            --set image.tag=${{ needs.build-and-push.outputs.image_tag }} \
+            --set image.pullPolicy=IfNotPresent \
+            --wait \
+            --timeout 5m

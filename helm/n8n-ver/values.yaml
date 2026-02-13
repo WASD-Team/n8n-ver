@@ -1,0 +1,34 @@
+replicaCount: 1
+
+image:
+  repository: 824404024508.dkr.ecr.eu-central-1.amazonaws.com/n8n-ver
+  tag: latest
+  pullPolicy: Always
+  pullSecret: ecr-eu-central-1
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  host: n8n-ver.overgear.in
+
+env: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
