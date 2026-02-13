@@ -20,9 +20,21 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
+function parseSslFromUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const sslMode = parsed.searchParams.get('sslmode');
+    if (sslMode === 'disable' || !sslMode) return undefined;
+    return { rejectUnauthorized: sslMode === 'verify-full' };
+  } catch {
+    return undefined;
+  }
+}
+
 async function migrate() {
   const pool = new Pool({
     connectionString: DATABASE_URL,
+    ssl: parseSslFromUrl(DATABASE_URL),
   });
 
   const client = await pool.connect();
