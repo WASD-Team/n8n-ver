@@ -1,0 +1,34 @@
+---
+description: После коммита и пуша дождаться сборки Docker образа в GitHub Actions
+alwaysApply: true
+---
+
+# Docker Build Workflow
+
+После `git commit` и `git push` всегда:
+
+## 1. Проверка статуса сборки в GitHub Actions
+
+```bash
+gh run list --repo altvk88/n8n-ver --branch auto-deploy --limit 1
+```
+
+## 2. Дождись завершения сборки (обычно ~2 минуты)
+
+- `in_progress` → сборка идёт
+- `completed success` → образ готов
+- `completed failure` → проверь логи ошибки
+
+## 3. При ошибке сборки
+
+Посмотри детали:
+```bash
+gh run view <RUN_ID> --log-failed
+```
+
+## Важно
+
+- Образ публикуется в GHCR с тегами `latest` и `{commit_sha}`
+- `docker-compose.yml` использует тег `latest` для автоматического получения последней версии
+- При деплое на сервере всегда будет скачиваться последний образ благодаря `pull_policy: always`
+- После успешной сборки — запусти редеплой в Timeweb для применения изменений
