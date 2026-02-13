@@ -3,8 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { SidebarNav } from "@/components/SidebarNav";
 import { getCurrentUser } from "@/lib/auth";
-import { listWorkflows } from "@/lib/versionsStore";
-import { listWorkflowGroups } from "@/lib/workflowGroupsStore";
+import { listWorkflows, type WorkflowSummary } from "@/lib/versionsStore";
+import { listWorkflowGroups, type WorkflowFolderMap } from "@/lib/workflowGroupsStore";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,10 +28,10 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const hasUserCookie = (await cookies()).has("vm_user");
-  let workflows = [];
-  let currentUser = null;
+  let workflows: WorkflowSummary[] = [];
+  let currentUser: Awaited<ReturnType<typeof getCurrentUser>> = null;
 
-  let folders = {};
+  let folders: WorkflowFolderMap = {};
   if (hasUserCookie) {
     try {
       [workflows, currentUser, folders] = await Promise.all([
